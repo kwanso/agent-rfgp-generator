@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// One E2 case moving through the case workflow (see src/lib/workflow.ts for stages).
+model Case {
+  id               String     @id @default(cuid())
+  applicantName    String
+  email            String
+  nationality      String
+  location         String // IN_US | OUTSIDE_US
+  usStatus         String? // LAWFUL | UNLAWFUL | TPS (only when IN_US)
+  currentVisa      String? // e.g. "F-1", "H-1B"
+  businessName     String
+  businessType     String
+  investmentAmount Int
+  stage            String     @default("CONSULTATION")
+  stopReason       String?
+  attorneyFlag     String?
+  checklist        String     @default("{}") // JSON: { [itemId]: boolean }
+  consultNotes     String?
+  ds160            String? // JSON: DS-160 answer sheet draft
+  coverLetter      String?
+  reviewFlags      String? // JSON: string[] weak points found by AI
+  missingItems     String? // JSON: string[]
+  signedBy         String?
+  signedAt         DateTime?
+  submittedAt      DateTime?
+  interviewDate    DateTime?
+  outcome          String? // APPROVED | REFUSED | ADMIN_PROCESSING_221G
+  outcomeNotes     String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  documents        Document[]
+  events           Event[]
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  kind      String // PASSPORT | BANK_STATEMENT | BUSINESS_PLAN | OTHER
+  filename  String
+  mimeType  String
+  path      String
+  extracted String? // JSON from AI extraction
+  createdAt DateTime @default(now())
+}
+
+// Audit trail: who did what, when.
+model Event {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  actor     String
+  message   String
+  createdAt DateTime @default(now())
+}
